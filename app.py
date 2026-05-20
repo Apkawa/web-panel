@@ -1,12 +1,31 @@
 import streamlit as st
 import subprocess
+import socket
 
-# Список ваших сервисов: (Красивое имя, Системное имя службы)
+# Конфигурация сервиса
+# TODO добавить автоопределение
+HOST = "192.168.1.69"
+# (НЕ РАБОТАЕТ) Для автоопределения IP: socket.gethostbyname(socket.gethostname())
+
+# Список ваших сервисов
+# display - отображаемое имя, port - порт сервера
 SERVICES = {
-    "Llama.cpp": "llama.cpp",
-    "ComfyUI": "comfyui",
-    "ComfyUI No cache": "comfyui-nocache",
-    "AceStep.cpp": "acestep.cpp",
+    "llama.cpp": {
+        "display": "Llama.cpp",
+        "port": 8080,
+    },
+    "comfyui": {
+        "display": "ComfyUI",
+        "port": 8188,
+    },
+    "comfyui-nocache": {
+        "display": "ComfyUI No cache",
+        "port": 8189,
+    },
+    "acestep.cpp": {
+        "display": "AceStep.cpp",
+        "port": 9090,
+    },
 }
 
 st.set_page_config(page_title="LLM Node Control", page_icon="🤖", layout="centered")
@@ -21,12 +40,14 @@ def get_status(service_name):
     return result.stdout.strip() == "active"
 
 # Отрисовка интерфейса
-for display_name, service_id in SERVICES.items():
+for service_id, config in SERVICES.items():
+    display_name = config["display"]
+    port = config["port"]
     is_running = get_status(service_id)
 
     # Создаем визуальный блок для каждого сервиса
     with st.container(border=True):
-        col1, col2, col3 = st.columns([2, 1, 1])
+        col1, col2, col3, col4 = st.columns([3, 1, 1, 1])
 
         with col1:
             status_emoji = "🟢 Запущен" if is_running else "🔴 Остановлен"
@@ -42,3 +63,6 @@ for display_name, service_id in SERVICES.items():
                 subprocess.run(["systemctl", "--user", "stop", service_id])
                 st.rerun()
 
+        with col4:
+            url = f"http://{HOST}:{port}"
+            st.markdown(f'[🔗 OPEN]({url})', unsafe_allow_html=True)
