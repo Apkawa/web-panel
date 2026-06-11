@@ -3,9 +3,7 @@ import subprocess
 import streamlit as st
 
 # Конфигурация сервиса
-# TODO добавить автоопределение
-HOST = "192.168.1.69"
-# (НЕ РАБОТАЕТ) Для автоопределения IP: socket.gethostbyname(socket.gethostname())
+HOST = st.context.headers["host"].split(":")[0]
 
 # Список ваших сервисов
 # display - отображаемое имя, port - порт сервера
@@ -279,9 +277,6 @@ def render_service(service_id, config):
             ):
                 subprocess.run(["systemctl", "--user", "restart", service_id])
                 st.rerun()
-
-        with col5:
-            st.markdown("**📋**")
 
         with col6:
             url = f"http://{HOST}:{port}"
