@@ -1,14 +1,30 @@
+import json
+import os
 import subprocess
 
 import streamlit as st
+import argparse
 
-# Конфигурация сервиса
-HOST = st.context.headers["host"].split(":")[0]
+# ── Аргументы командной строки ────────────────────────────────────
 
-# Список ваших сервисов
-# display - отображаемое имя, port - порт сервера
-SERVICES = {
-    "web-panel": {"display": "Web panel (this)", "port": 8501},
+parser = argparse.ArgumentParser(description="LLM Node Control Panel")
+parser.add_argument(
+    "--config",
+    type=str,
+    default=None,
+    help="Path to JSON config file with services definition",
+)
+try:
+    args = parser.parse_args()
+except SystemExit as e:
+    os._exit(e.code)
+
+# ── Загрузка конфигурации сервисов ────────────────────────────────
+
+DEFAULT_SERVICES = {
+    "web-panel": {
+        "display": "Web panel (this)", "port": 8501
+    },
     "llama.cpp": {
         "display": "Llama.cpp",
         "port": 8080,
@@ -34,6 +50,16 @@ SERVICES = {
         "port": 8085,
     },
 }
+
+if args.config:
+    with open(args.config, "r") as f:
+        raw = json.load(f)
+    SERVICES = raw.get("services", DEFAULT_SERVICES)
+else:
+    SERVICES = DEFAULT_SERVICES
+
+# Конфигурация интерфейса
+HOST = st.context.headers["host"].split(":")[0]
 
 
 @st.cache_resource
