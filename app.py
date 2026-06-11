@@ -37,6 +37,7 @@ SERVICES = {
     },
 }
 
+
 @st.cache_resource
 def reload_systemd_services():
     """Выполняется один раз при запуске приложения."""
@@ -56,6 +57,7 @@ def reload_systemd_services():
 
 
 # Streamlit вызывает эту функцию сразу.
+
 # Благодаря @st.cache_resource, реальный запуск systemctl произойдет только 1 раз.
 init_message = reload_systemd_services()
 
@@ -156,7 +158,6 @@ def render_system_metrics():
             st.metric(label="🧮 RAM", value="—")
 
 
-
 def get_status(service_name):
     """Проверяет, работает ли служба в данный момент"""
     result = subprocess.run(
@@ -201,13 +202,20 @@ def get_logs(service_name, n_lines):
 # ── Автообновление ──────────────────────────────────────────────────
 
 if "auto_refresh" not in st.session_state:
-    st.session_state.auto_refresh = False
+    st.session_state.auto_refresh = True
+
 
 def toggle_auto_refresh():
     st.session_state.auto_refresh = not st.session_state.auto_refresh
 
+
 st.sidebar.slider(
-    "Обновление каждые (с)", 0.5, 5.0, value=2.0, key="run_every"
+    "Обновление каждые (с)",
+    0.5,
+    5.0,
+    value=1.0,
+    key="run_every",
+    step=0.5,
 )
 st.sidebar.button(
     "▶ Автообновление",
@@ -227,91 +235,98 @@ else:
     run_every = None
 
 
+def render_service(service_id, config):
+    display_name = config["display"]
+    port = config["port"]
+    is_running = get_status(service_id)
+
+    with st.container(border=True):
+        col1, col2, col3, col4, col5, col6 = st.columns([3, 1, 1, 1, 1, 1])
+
+        with col1:
+            status_emoji = "🟢 Запущен" if is_running else "🔴 Остановлен"
+            st.markdown(f"### {display_name}\nСтатус: **{status_emoji}**")
+
+        with col2:
+            if st.button(
+                "▶️",
+                key=f"start_{service_id}",
+                disabled=is_running,
+                use_container_width=True,
+                help="Старт",
+            ):
+                subprocess.run(["systemctl", "--user", "start", service_id])
+                st.rerun()
+
+        with col3:
+            if st.button(
+                "⏹️",
+                key=f"stop_{service_id}",
+                disabled=not is_running,
+                use_container_width=True,
+                help="Стоп",
+            ):
+                subprocess.run(["systemctl", "--user", "stop", service_id])
+                st.rerun()
+
+        with col4:
+            if st.button(
+                "🔄",
+                key=f"restart_{service_id}",
+                disabled=not is_running,
+                use_container_width=True,
+                help="Рестарт",
+            ):
+                subprocess.run(["systemctl", "--user", "restart", service_id])
+                st.rerun()
+
+        with col5:
+            st.markdown("**📋**")
+
+        with col6:
+            url = f"http://{HOST}:{port}"
+            st.markdown(f"[🔗]({url})", unsafe_allow_html=True)
+
+
+def render_log(service_id, config):
+    display_name = config["display"]
+
+    ss_key = f"logs_open_{service_id}"
+    ss_n_key = f"logs_n_{service_id}"
+
+    if ss_key not in st.session_state:
+        st.session_state[ss_key] = False
+    if ss_n_key not in st.session_state:
+        st.session_state[ss_n_key] = 25
+
+    LOGS_PAGE = 25
+
+    with st.expander(f"📜 Логи: {display_name}", expanded=st.session_state[ss_key]):
+        current_n = st.session_state[ss_n_key]
+        lines = get_logs(service_id, current_n)
+
+        st.code("\n".join(lines), language="text")
+
+        col_a, col_b = st.columns([2, 1])
+        with col_a:
+            st.caption(f"{len(lines)} строк")
+        with col_b:
+            if st.button(
+                f"⬆️ +{LOGS_PAGE}",
+                key=f"older_{service_id}",
+                use_container_width=True,
+            ):
+                st.session_state[ss_n_key] = current_n + LOGS_PAGE
+                st.rerun()
+
+
 @st.fragment(run_every=run_every)
 def render_services():
     render_system_metrics()
 
     for service_id, config in SERVICES.items():
-        display_name = config["display"]
-        port = config["port"]
-        is_running = get_status(service_id)
-
-        with st.container(border=True):
-            col1, col2, col3, col4, col5, col6 = st.columns([3, 1, 1, 1, 1, 1])
-
-            with col1:
-                status_emoji = "🟢 Запущен" if is_running else "🔴 Остановлен"
-                st.markdown(f"### {display_name}\nСтатус: **{status_emoji}**")
-
-            with col2:
-                if st.button(
-                    "▶️",
-                    key=f"start_{service_id}",
-                    disabled=is_running,
-                    use_container_width=True,
-                    help="Старт",
-                ):
-                    subprocess.run(["systemctl", "--user", "start", service_id])
-                    st.rerun()
-
-            with col3:
-                if st.button(
-                    "⏹️",
-                    key=f"stop_{service_id}",
-                    disabled=not is_running,
-                    use_container_width=True,
-                    help="Стоп",
-                ):
-                    subprocess.run(["systemctl", "--user", "stop", service_id])
-                    st.rerun()
-
-            with col4:
-                if st.button(
-                    "🔄",
-                    key=f"restart_{service_id}",
-                    disabled=not is_running,
-                    use_container_width=True,
-                    help="Рестарт",
-                ):
-                    subprocess.run(["systemctl", "--user", "restart", service_id])
-                    st.rerun()
-
-            ss_key = f"logs_open_{service_id}"
-            ss_n_key = f"logs_n_{service_id}"
-            btn_key = f"logs_btn_{service_id}"
-
-            if ss_key not in st.session_state:
-                st.session_state[ss_key] = False
-            if ss_n_key not in st.session_state:
-                st.session_state[ss_n_key] = 100
-
-            LOGS_PAGE = 50
-
-            with col5:
-                if st.button("📋", key=btn_key, use_container_width=True, help="Логи"):
-                    st.session_state[ss_key] = not st.session_state[ss_key]
-                    st.rerun()
-
-            with col6:
-                url = f"http://{HOST}:{port}"
-                st.markdown(f"[🔗]({url})", unsafe_allow_html=True)
-
-            # Аккордион с логами
-            if st.session_state[ss_key]:
-                current_n = st.session_state[ss_n_key]
-                lines = get_logs(service_id, current_n)
-
-                with st.expander(f"📜 Логи ({len(lines)} строк)", expanded=True):
-                    display = list(lines)
-                    st.code("\n".join(display), language="text")
-
-                    if st.button(
-                        "⬆️ Обновить",
-                        key=f"older_{service_id}",
-                        use_container_width=True,
-                    ):
-                        st.session_state[ss_n_key] = current_n + LOGS_PAGE
-                        st.rerun()
+        render_service(service_id, config)
+        render_log(service_id, config)
 
 
 render_services()
