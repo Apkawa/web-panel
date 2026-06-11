@@ -114,45 +114,47 @@ def get_memory_stats():
         return None
 
 
-def render_system_stats():
-    """Отрисовывает блок статистики системы в sidebar."""
-    st.sidebar.header("📊 Система")
-
+def render_system_metrics():
+    """Отрисовывает метрики системы в строку над сервисами."""
     gpu = get_gpu_stats()
     mem = get_memory_stats()
 
-    if gpu:
-        gpu_used_gb = gpu["used"] / 1024
-        gpu_total_gb = gpu["total"] / 1024
-        gpu_pct = gpu["util"]
-        gpu_temp = gpu["temp"]
-        with st.sidebar.container():
+    cols = st.columns(3)
+
+    # GPU Load
+    with cols[0]:
+        if gpu:
             st.metric(
                 label="💻 GPU Load",
-                value=f"{gpu_pct}%",
-                help=f"Temperature: {gpu_temp}°C",
+                value=f"{gpu['util']}%",
+                help=f"Temperature: {gpu['temp']}°C",
             )
+        else:
+            st.metric(label="💻 GPU Load", value="—", help="nvidia-smi not available")
+
+    # GPU Memory
+    with cols[1]:
+        if gpu:
             st.metric(
                 label="🧠 GPU Memory",
-                value=f"{gpu_used_gb:.1f} / {gpu_total_gb:.1f} GB",
-                delta=None,
+                value=f"{gpu['used'] / 1024:.1f} / {gpu['total'] / 1024:.1f} GB",
             )
-    else:
-        st.sidebar.warning("⚠️ nvidia-smi not available")
+        else:
+            st.metric(label="🧠 GPU Memory", value="—")
 
-    if mem:
-        mem_used_gb = mem["used"] / 1024 / 1024
-        mem_total_gb = mem["total"] / 1024 / 1024
-        mem_pct = (mem["used"] / mem["total"]) * 100
-        with st.sidebar.container():
+    # RAM
+    with cols[2]:
+        if mem:
+            mem_used_gb = mem["used"] / 1024 / 1024
+            mem_total_gb = mem["total"] / 1024 / 1024
             st.metric(
                 label="🧮 RAM",
                 value=f"{mem_used_gb:.1f} / {mem_total_gb:.1f} GB",
                 help=f"Available: {mem['available'] / 1024 / 1024:.1f} GB",
             )
-            st.progress(mem_pct / 100)
-    else:
-        st.sidebar.text("RAM: —")
+        else:
+            st.metric(label="🧮 RAM", value="—")
+
 
 
 def get_status(service_name):
@@ -196,93 +198,120 @@ def get_logs(service_name, n_lines):
     return text.splitlines()
 
 
+# ── Автообновление ──────────────────────────────────────────────────
+
+if "auto_refresh" not in st.session_state:
+    st.session_state.auto_refresh = False
+
+def toggle_auto_refresh():
+    st.session_state.auto_refresh = not st.session_state.auto_refresh
+
+st.sidebar.slider(
+    "Обновление каждые (с)", 0.5, 5.0, value=2.0, key="run_every"
+)
+st.sidebar.button(
+    "▶ Автообновление",
+    disabled=st.session_state.auto_refresh,
+    on_click=toggle_auto_refresh,
+    type="primary",
+)
+st.sidebar.button(
+    "⏹ Стоп",
+    disabled=not st.session_state.auto_refresh,
+    on_click=toggle_auto_refresh,
+)
+
+if st.session_state.auto_refresh:
+    run_every = st.session_state.run_every
+else:
+    run_every = None
 
 
-# Отрисовка интерфейса
-render_system_stats()
+@st.fragment(run_every=run_every)
+def render_services():
+    render_system_metrics()
 
-for service_id, config in SERVICES.items():
-    display_name = config["display"]
-    port = config["port"]
-    is_running = get_status(service_id)
+    for service_id, config in SERVICES.items():
+        display_name = config["display"]
+        port = config["port"]
+        is_running = get_status(service_id)
 
-    # Создаем визуальный блок для каждого сервиса
-    with st.container(border=True):
-        col1, col2, col3, col4, col5, col6 = st.columns([3, 1, 1, 1, 1, 1])
+        with st.container(border=True):
+            col1, col2, col3, col4, col5, col6 = st.columns([3, 1, 1, 1, 1, 1])
 
-        with col1:
-            status_emoji = "🟢 Запущен" if is_running else "🔴 Остановлен"
-            st.markdown(f"### {display_name}\nСтатус: **{status_emoji}**")
+            with col1:
+                status_emoji = "🟢 Запущен" if is_running else "🔴 Остановлен"
+                st.markdown(f"### {display_name}\nСтатус: **{status_emoji}**")
 
-        with col2:
-            if st.button(
-                "▶️",
-                key=f"start_{service_id}",
-                disabled=is_running,
-                use_container_width=True,
-                help="Старт",
-            ):
-                subprocess.run(["systemctl", "--user", "start", service_id])
-                st.rerun()
-
-        with col3:
-            if st.button(
-                "⏹️",
-                key=f"stop_{service_id}",
-                disabled=not is_running,
-                use_container_width=True,
-                help="Стоп",
-            ):
-                subprocess.run(["systemctl", "--user", "stop", service_id])
-                st.rerun()
-
-        with col4:
-            if st.button(
-                "🔄",
-                key=f"restart_{service_id}",
-                disabled=not is_running,
-                use_container_width=True,
-                help="Рестарт",
-            ):
-                subprocess.run(["systemctl", "--user", "restart", service_id])
-                st.rerun()
-
-        # Состояние логов для каждого сервиса
-        ss_key = f"logs_open_{service_id}"
-        ss_n_key = f"logs_n_{service_id}"
-        btn_key = f"logs_btn_{service_id}"
-
-        if ss_key not in st.session_state:
-            st.session_state[ss_key] = False
-        if ss_n_key not in st.session_state:
-            st.session_state[ss_n_key] = 100
-
-        LOGS_PAGE = 50  # количество строк за один шаг
-
-        with col5:
-            if st.button("📋", key=btn_key, use_container_width=True, help="Логи"):
-                st.session_state[ss_key] = not st.session_state[ss_key]
-                st.rerun()
-
-        with col6:
-            url = f"http://{HOST}:{port}"
-            st.markdown(f"[🔗]({url})", unsafe_allow_html=True)
-
-
-        # Аккордион с логами
-        if st.session_state[ss_key]:
-            current_n = st.session_state[ss_n_key]
-            lines = get_logs(service_id, current_n)
-
-            with st.expander(f"📜 Логи ({len(lines)} строк)", expanded=True):
-                display = list(lines)
-
-                st.code("\n".join(display), language="text")
-
+            with col2:
                 if st.button(
-                    "⬆️ Обновить",
-                    key=f"older_{service_id}",
+                    "▶️",
+                    key=f"start_{service_id}",
+                    disabled=is_running,
                     use_container_width=True,
+                    help="Старт",
                 ):
-                    # st.session_state[ss_n_key] = current_n + LOGS_PAGE
+                    subprocess.run(["systemctl", "--user", "start", service_id])
                     st.rerun()
+
+            with col3:
+                if st.button(
+                    "⏹️",
+                    key=f"stop_{service_id}",
+                    disabled=not is_running,
+                    use_container_width=True,
+                    help="Стоп",
+                ):
+                    subprocess.run(["systemctl", "--user", "stop", service_id])
+                    st.rerun()
+
+            with col4:
+                if st.button(
+                    "🔄",
+                    key=f"restart_{service_id}",
+                    disabled=not is_running,
+                    use_container_width=True,
+                    help="Рестарт",
+                ):
+                    subprocess.run(["systemctl", "--user", "restart", service_id])
+                    st.rerun()
+
+            ss_key = f"logs_open_{service_id}"
+            ss_n_key = f"logs_n_{service_id}"
+            btn_key = f"logs_btn_{service_id}"
+
+            if ss_key not in st.session_state:
+                st.session_state[ss_key] = False
+            if ss_n_key not in st.session_state:
+                st.session_state[ss_n_key] = 100
+
+            LOGS_PAGE = 50
+
+            with col5:
+                if st.button("📋", key=btn_key, use_container_width=True, help="Логи"):
+                    st.session_state[ss_key] = not st.session_state[ss_key]
+                    st.rerun()
+
+            with col6:
+                url = f"http://{HOST}:{port}"
+                st.markdown(f"[🔗]({url})", unsafe_allow_html=True)
+
+            # Аккордион с логами
+            if st.session_state[ss_key]:
+                current_n = st.session_state[ss_n_key]
+                lines = get_logs(service_id, current_n)
+
+                with st.expander(f"📜 Логи ({len(lines)} строк)", expanded=True):
+                    display = list(lines)
+                    st.code("\n".join(display), language="text")
+
+                    if st.button(
+                        "⬆️ Обновить",
+                        key=f"older_{service_id}",
+                        use_container_width=True,
+                    ):
+                        st.session_state[ss_n_key] = current_n + LOGS_PAGE
+                        st.rerun()
+
+
+render_services()
