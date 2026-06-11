@@ -1,7 +1,4 @@
-import select
 import subprocess
-import time
-import socket
 
 import streamlit as st
 
@@ -65,8 +62,97 @@ init_message = reload_systemd_services()
 # Выводим статус в интерфейс (по желанию)
 st.sidebar.info(init_message)
 
-st.set_page_config(page_title="LLM Node Control", page_icon="🤖", layout="wide")
+st.set_page_config(
+    page_title="LLM Node Control",
+    page_icon="🤖",
+    layout="wide",
+)
+
 st.title("📟 Мой Сервер управления LLM")
+
+
+@st.cache_data(ttl=5)
+def get_gpu_stats():
+    """Парсит вывод nvidia-smi для получения статистики GPU."""
+    try:
+        result = subprocess.run(
+            [
+                "nvidia-smi",
+                "--query-gpu=memory.used,memory.total,utilization.gpu,temperature.gpu",
+                "--format=csv,noheader,nounits",
+            ],
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
+            return None
+        # Формат: "X MiB, Y MiB, Z %, T"
+        parts = result.stdout.strip().split(",")
+        used = int(parts[0].strip())
+        total = int(parts[1].strip())
+        util = int(parts[2].strip())
+        temp = int(parts[3].strip())
+        return {"used": used, "total": total, "util": util, "temp": temp}
+    except Exception:
+        return None
+
+
+@st.cache_data(ttl=5)
+def get_memory_stats():
+    """Парсит /proc/meminfo для получения статистики RAM."""
+    try:
+        meminfo = {}
+        with open("/proc/meminfo", "r") as f:
+            for line in f:
+                key, value = line.split(":", 1)
+                meminfo[key.strip()] = int(value.split()[0])  # kB
+        total = meminfo["MemTotal"]
+        available = meminfo.get("MemAvailable", meminfo["MemFree"])
+        used = total - available
+        return {"used": used, "total": total, "available": available}
+    except Exception:
+        return None
+
+
+def render_system_stats():
+    """Отрисовывает блок статистики системы в sidebar."""
+    st.sidebar.header("📊 Система")
+
+    gpu = get_gpu_stats()
+    mem = get_memory_stats()
+
+    if gpu:
+        gpu_used_gb = gpu["used"] / 1024
+        gpu_total_gb = gpu["total"] / 1024
+        gpu_pct = gpu["util"]
+        gpu_temp = gpu["temp"]
+        with st.sidebar.container():
+            st.metric(
+                label="💻 GPU Load",
+                value=f"{gpu_pct}%",
+                help=f"Temperature: {gpu_temp}°C",
+            )
+            st.metric(
+                label="🧠 GPU Memory",
+                value=f"{gpu_used_gb:.1f} / {gpu_total_gb:.1f} GB",
+                delta=None,
+            )
+    else:
+        st.sidebar.warning("⚠️ nvidia-smi not available")
+
+    if mem:
+        mem_used_gb = mem["used"] / 1024 / 1024
+        mem_total_gb = mem["total"] / 1024 / 1024
+        mem_pct = (mem["used"] / mem["total"]) * 100
+        with st.sidebar.container():
+            st.metric(
+                label="🧮 RAM",
+                value=f"{mem_used_gb:.1f} / {mem_total_gb:.1f} GB",
+                help=f"Available: {mem['available'] / 1024 / 1024:.1f} GB",
+            )
+            st.progress(mem_pct / 100)
+    else:
+        st.sidebar.text("RAM: —")
 
 
 def get_status(service_name):
@@ -113,6 +199,8 @@ def get_logs(service_name, n_lines):
 
 
 # Отрисовка интерфейса
+render_system_stats()
+
 for service_id, config in SERVICES.items():
     display_name = config["display"]
     port = config["port"]
