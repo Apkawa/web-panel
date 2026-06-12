@@ -11,7 +11,7 @@ parser = argparse.ArgumentParser(description="LLM Node Control Panel")
 parser.add_argument(
     "--config",
     type=str,
-    default=None,
+    default=os.path.join(os.path.dirname(__file__), 'config.json'),
     help="Path to JSON config file with services definition",
 )
 try:
@@ -326,19 +326,31 @@ def render_log(service_id, config):
         current_n = st.session_state[ss_n_key]
         lines = get_logs(service_id, current_n)
 
-        st.code("\n".join(lines), language="text")
 
-        col_a, col_b = st.columns([2, 1])
+        col_a, col_b, col_c = st.columns([2, 1, 1])
         with col_a:
             st.caption(f"{len(lines)} строк")
         with col_b:
             if st.button(
+                f"⬆️ -{LOGS_PAGE}",
+                key=f"log_less_{service_id}",
+                use_container_width=True,
+                disabled=current_n <= LOGS_PAGE
+            ):
+                if current_n > LOGS_PAGE:
+                    st.session_state[ss_n_key] = current_n - LOGS_PAGE
+                    st.rerun()
+        with col_c:
+            if st.button(
                 f"⬆️ +{LOGS_PAGE}",
-                key=f"older_{service_id}",
+                key=f"log_more_{service_id}",
                 use_container_width=True,
             ):
                 st.session_state[ss_n_key] = current_n + LOGS_PAGE
                 st.rerun()
+
+        st.code("\n".join(lines), language="text")
+
 
 
 @st.fragment(run_every=run_every)
