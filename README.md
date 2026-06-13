@@ -32,6 +32,29 @@ uv run web-panel --port 8501 --listen 0.0.0.0 --config ./config.json
 uv run streamlit run src/web_panel/app.py
 ```
 
+Так же можно использовать `uvx` 
+
+```bash
+uvx https://github.com/Apkawa/web-panel.git --help
+```
+
+## CLI
+
+```bash
+$ uvx https://github.com/Apkawa/web-panel.git --help
+
+usage: web-panel [-h] [--config CONFIG] [--port PORT] [--listen LISTEN]
+
+LLM Node Control Panel
+
+options:
+  -h, --help       show this help message and exit
+  --config CONFIG  Path to JSON config file with services definition
+  --port PORT      Port to run the panel on (default: 8502)
+  --listen LISTEN  Address to listen on (default: 0.0.0.0)
+```
+
+
 ## Установка systemd-сервиса
 
 ### Подготовка

@@ -6,6 +6,9 @@ Type=simple
 WorkingDirectory=/path/to/web-panel
 # whereis uv
 ExecStart=%h/.local/bin/uv run web-panel --port 8501 --listen 0.0.0.0 --config=./config.json
+# whereis uvx
+#ExecStart=%h/.local/bin/uv uvx https://github.com/Apkawa/web-panel.git --port 8501 --listen 0.0.0.0 --config=./config.json
+
 Restart=always
 
 [Install]
