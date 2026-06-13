@@ -66,6 +66,11 @@ uv run streamlit run app.py --server.port 8501 --server.address 0.0.0.0 --client
    systemctl --user daemon-reload
    systemctl --user enable --now web-panel.service
    ```
+5. Для корректной работы кнопки `Clean mem` добавьте исключения для команд в sudoers
+  `/etc/sudoers.d/clean_mem`
+  ```bash
+  %sudo ALL=NOPASSWD: /usr/bin/sync, /usr/sbin/sysctl -w vm.drop_caches=3
+  ```
 
 ### Примеры сервисов
 
