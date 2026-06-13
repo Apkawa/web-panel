@@ -1,0 +1,11 @@
+[Unit]
+Description=Marinara Engine server
+
+[Service]
+Type=simple
+WorkingDirectory=/path/to/marinara-engine/Marinara-Engine
+ExecStart=/path/to/marinara-engine/Marinara-Engine/start.sh
+Restart=no
+
+[Install]
+WantedBy=default.target

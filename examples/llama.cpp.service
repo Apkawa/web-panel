@@ -1,0 +1,22 @@
+[Unit]
+Description=llama.cpp server
+
+[Service]
+Type=simple
+WorkingDirectory=/path/to/LLM
+ExecStart=/path/to/llama-cpp-run.sh
+Restart=no
+# 1. Отключаем лимиты памяти (снимает ограничения systemd)
+MemoryAccounting=yes
+MemoryMax=infinity
+MemoryHigh=infinity
+
+# 2. Запрещаем systemd убивать сервис при нехватке памяти
+OOMPolicy=continue
+
+# 3. Защищаем от системного OOM-killer ядра Linux
+OOMScoreAdjust=-1000
+
+
+[Install]
+WantedBy=default.target

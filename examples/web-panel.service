@@ -1,0 +1,11 @@
+[Unit]
+Description=My Custom Web Panel
+
+[Service]
+Type=simple
+WorkingDirectory=/path/to/web-panel
+ExecStart=/path/to/.local/bin/uv run streamlit run app.py --server.port 8501 --server.address 0.0.0.0 --client.toolbarMode hidden
+Restart=always
+
+[Install]
+WantedBy=default.target
