@@ -4,9 +4,15 @@ version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.14"
+license = "MIT"
 dependencies = [
     "streamlit>=1.57.0",
 ]
 
 [project.scripts]
 web-panel = "web_panel.main:main"
+
+[project.urls]
+Repository = "https://github.com/Apkawa/web-panel.git"
+Issues = "https://github.com/Apkawa/web-panel/issues"
+Changelog = "https://github.com/Apkawa/web-panel/master/CHANGELOG.md"

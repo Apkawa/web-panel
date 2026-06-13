@@ -4,6 +4,8 @@
 останавливать и мониторить systemd user-сервисы (llama.cpp, ComfyUI, AceStep.cpp
 и др.) через удобный веб-интерфейс на Linux-сервере.
 
+![Preview](./examples/screen.png)
+
 ## Требования
 
 - Linux с systemd
