@@ -1,20 +1,17 @@
 import ipaddress
-import json
 import os
 import subprocess
 
 import streamlit as st
 
+from web_panel.utils import load_config
+
 # Читаем переменную, которую передал наш main.py
 config_path = os.environ.get("WEB_PANEL_CONFIG",
     os.path.join(os.path.dirname(__file__), "config.json"))
 
-@st.cache_data
-def load_config(path):
-    from .utils import load_config as _load_config
-    _load_config(path)
 
-config = load_config(config_path)
+config = st.cache_data(load_config)(config_path)
 
 # ── Загрузка конфигурации сервисов ────────────────────────────────
 

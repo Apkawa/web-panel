@@ -25,7 +25,7 @@ def run(args: argparse.Namespace):
     app_path = os.path.join(current_dir, "app.py")
 
     default_config = {
-        "port": "8502",
+        "port": "8501",
         "listen": "0.0.0.0",
     }
     user_config = load_config(abs_config_path)
@@ -63,6 +63,18 @@ def main():
         type=str,
         default=os.path.join(os.path.dirname(__file__), "config.json"),
         help="Path to JSON config file with services definition",
+    )
+    parser.add_argument(
+        "--port",
+        type=str,
+        default="8502",
+        help="Port to run the panel on (default: 8502)",
+    )
+    parser.add_argument(
+        "--listen",
+        type=str,
+        default="0.0.0.0",
+        help="Address to listen on (default: 0.0.0.0)",
     )
     try:
         args = parser.parse_args()

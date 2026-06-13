@@ -65,6 +65,7 @@ uv run streamlit run app.py --server.port 8501 --server.address 0.0.0.0 --client
    ```bash
    systemctl --user daemon-reload
    systemctl --user enable --now web-panel.service
+   systemctl --user restart web-panel.service
    ```
 5. Для корректной работы кнопки `Clean mem` добавьте исключения для команд в sudoers
   `/etc/sudoers.d/clean_mem`

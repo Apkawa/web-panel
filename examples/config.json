@@ -1,0 +1,36 @@
+{
+  "title": "📟 Мой Сервер управления LLM",
+  "allowed_ips": ["127.0.0.1", "192.168.1.0/24", "10.0.0.0/8", "192.168.0.*"],
+  "port": "8501",
+  "listen": "0.0.0.0",
+  "services": {
+    "llama.cpp": {
+      "display": "Llama.cpp",
+      "port": 8080
+    },
+    "marinara-engine": {
+      "display": "Marinara Engine",
+      "port": 7860
+    },
+    "silly-tavern": {
+      "display": "Silly Tavern",
+      "port": 8000
+    },
+    "comfyui": {
+      "display": "ComfyUI",
+      "port": 8188
+    },
+    "comfyui-nocache": {
+      "display": "ComfyUI No cache",
+      "port": 8188
+    },
+    "acestep.cpp": {
+      "display": "AceStep.cpp",
+      "port": 8085
+    },
+    "web-panel": {
+      "display": "Web panel (this)",
+      "port": 8501
+    }
+  }
+}
