@@ -1,9 +1,9 @@
+import argparse
 import json
 import os
 import subprocess
 
 import streamlit as st
-import argparse
 
 # ── Аргументы командной строки ────────────────────────────────────
 
@@ -11,7 +11,7 @@ parser = argparse.ArgumentParser(description="LLM Node Control Panel")
 parser.add_argument(
     "--config",
     type=str,
-    default=os.path.join(os.path.dirname(__file__), 'config.json'),
+    default=os.path.join(os.path.dirname(__file__), "config.json"),
     help="Path to JSON config file with services definition",
 )
 try:
@@ -22,9 +22,7 @@ except SystemExit as e:
 # ── Загрузка конфигурации сервисов ────────────────────────────────
 
 DEFAULT_SERVICES = {
-    "web-panel": {
-        "display": "Web panel (this)", "port": 8501
-    },
+    "web-panel": {"display": "Web panel (this)", "port": 8501},
     "llama.cpp": {
         "display": "Llama.cpp",
         "port": 8080,
@@ -140,6 +138,22 @@ def get_memory_stats():
         return None
 
 
+def clean_mem():
+    with st.spinner("Processing.."):
+        subprocess.run(
+            ["sudo", "sync"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        subprocess.run(
+            ["sudo", "sysctl", "-w", "vm.drop_caches=3"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+
+
 def render_system_metrics():
     """Отрисовывает метрики системы в строку над сервисами."""
     gpu = get_gpu_stats()
@@ -180,6 +194,14 @@ def render_system_metrics():
             )
         else:
             st.metric(label="🧮 RAM", value="—")
+
+        if st.button(
+            "🧹 Clean mem",
+            use_container_width=False,
+            help="sudo sync; sysctl -w vm.drop_caches=3",
+        ):
+            clean_mem()
+            st.rerun()
 
 
 def get_status(service_name):
@@ -326,7 +348,6 @@ def render_log(service_id, config):
         current_n = st.session_state[ss_n_key]
         lines = get_logs(service_id, current_n)
 
-
         col_a, col_b, col_c = st.columns([2, 1, 1])
         with col_a:
             st.caption(f"{len(lines)} строк")
@@ -335,7 +356,7 @@ def render_log(service_id, config):
                 f"⬆️ -{LOGS_PAGE}",
                 key=f"log_less_{service_id}",
                 use_container_width=True,
-                disabled=current_n <= LOGS_PAGE
+                disabled=current_n <= LOGS_PAGE,
             ):
                 if current_n > LOGS_PAGE:
                     st.session_state[ss_n_key] = current_n - LOGS_PAGE
@@ -350,7 +371,6 @@ def render_log(service_id, config):
                 st.rerun()
 
         st.code("\n".join(lines), language="text")
-
 
 
 @st.fragment(run_every=run_every)
