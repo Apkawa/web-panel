@@ -15,27 +15,27 @@
 
 ## Быстрый старт
 
+Запустить панель одной командой (без установки):
+
 ```bash
-uv sync
-uv run web-panel --config ./config.json
+uvx https://github.com/Apkawa/web-panel.git --config ./config.json
 ```
 
 Для работы на удалённом сервере:
 
 ```bash
-uv run web-panel --port 8501 --listen 0.0.0.0 --config ./config.json
+uvx https://github.com/Apkawa/web-panel.git --port 8501 --listen 0.0.0.0 --config ./config.json
 ```
 
-Или напрямую через Streamlit (для локальной разработки):
+### Установка из исходников
+
+Для разработки или кастомной настройки:
 
 ```bash
-uv run streamlit run src/web_panel/app.py
-```
-
-Так же можно использовать `uvx` 
-
-```bash
-uvx https://github.com/Apkawa/web-panel.git --help
+git clone https://github.com/Apkawa/web-panel.git
+cd web-panel
+uv sync
+uv run web-panel --config ./config.json
 ```
 
 ## CLI
