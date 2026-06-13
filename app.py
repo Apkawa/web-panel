@@ -1,4 +1,3 @@
-import argparse
 import ipaddress
 import json
 import os
@@ -6,17 +5,18 @@ import subprocess
 
 import streamlit as st
 
-parser = argparse.ArgumentParser(description="LLM Node Control Panel")
-parser.add_argument(
-    "--config",
-    type=str,
-    default=os.path.join(os.path.dirname(__file__), "config.json"),
-    help="Path to JSON config file with services definition",
-)
-try:
-    args = parser.parse_args()
-except SystemExit as e:
-    os._exit(e.code)
+# Читаем переменную, которую передал наш main.py
+config_path = os.environ.get("WEB_PANEL_CONFIG",
+    os.path.join(os.path.dirname(__file__), "config.json"))
+
+@st.cache_data
+def load_config(path):
+    if os.path.exists(path):
+        with open(path, "r") as f:
+            return json.load(f)
+    return {}
+
+config = load_config(config_path)
 
 # ── Загрузка конфигурации сервисов ────────────────────────────────
 
@@ -30,13 +30,9 @@ ALLOWED_IPS = [
     "10.0.0.0/8",  # Разрешит всю сеть 10.*.*.*
     "192.168.0.*",  # Маска со звездочкой (автоматически превратится в /24)
 ]
-raw = {}
-if args.config:
-    with open(args.config, "r") as f:
-        raw = json.load(f)
 
-SERVICES = raw.get("services", DEFAULT_SERVICES)
-ALLOWED_IPS = raw.get("allowed_ips", ALLOWED_IPS)
+SERVICES = config.get("services", DEFAULT_SERVICES)
+ALLOWED_IPS = config.get("allowed_ips", ALLOWED_IPS)
 
 
 def is_ip_allowed(ip_str):
@@ -119,13 +115,13 @@ init_message = reload_systemd_services()
 # Выводим статус в интерфейс (по желанию)
 st.sidebar.info(init_message)
 
+title = config.get("title", "📟 Мой Сервер управления LLM")
 st.set_page_config(
-    page_title="LLM Node Control",
+    page_title=title,
     page_icon="🤖",
     layout="wide",
 )
-
-st.title("📟 Мой Сервер управления LLM")
+st.title(title)
 
 
 @st.cache_data(ttl=5)
@@ -381,7 +377,7 @@ def render_log(service_id, config):
         current_n = st.session_state[ss_n_key]
         lines = get_logs(service_id, current_n)
 
-        col_a, col_b, col_c = st.columns([2, 1, 1])
+        col_a, col_b, col_c, col_d = st.columns([2, 1, 1, 1])
         with col_a:
             st.caption(f"{len(lines)} строк")
         with col_b:
@@ -389,6 +385,7 @@ def render_log(service_id, config):
                 f"⬇️ -{LOGS_PAGE}",
                 key=f"log_less_{service_id}",
                 use_container_width=True,
+                help="Уменьшить количество строк выводимого лога",
                 disabled=current_n <= LOGS_PAGE,
             ):
                 if current_n > LOGS_PAGE:
@@ -398,9 +395,20 @@ def render_log(service_id, config):
             if st.button(
                 f"⬆️ +{LOGS_PAGE}",
                 key=f"log_more_{service_id}",
+                help="Увеличить количество строк выводимого лога",
                 use_container_width=True,
             ):
                 st.session_state[ss_n_key] = current_n + LOGS_PAGE
+                st.rerun()
+
+        with col_d:
+            if st.button(
+                f"🔁 ={LOGS_PAGE}",
+                key=f"log_reset_{service_id}",
+                help="Сбросить количество строк выводимого лога",
+                use_container_width=True,
+            ):
+                st.session_state[ss_n_key] = LOGS_PAGE
                 st.rerun()
 
         st.code("\n".join(lines), language="text")

@@ -2,3 +2,5 @@
 * [ ] Отрефакторить, разделить код на модули
   - config.py
   - utils
+
+* [ ] сделать сервис запускаемым через `uvx git+https://github.com/Apkawa/web-panel`
