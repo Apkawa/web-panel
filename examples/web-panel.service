@@ -5,7 +5,7 @@ Description=My Custom Web Panel
 Type=simple
 WorkingDirectory=/path/to/web-panel
 # whereis uv
-ExecStart=%h/.local/bin/uv run streamlit run app.py --server.port 8501 --server.address 0.0.0.0 --client.toolbarMode hidden
+ExecStart=%h/.local/bin/uv run web-panel --port 8501 --listen 0.0.0.0 --config=./config.json
 Restart=always
 
 [Install]

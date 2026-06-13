@@ -15,23 +15,29 @@
 
 ```bash
 uv sync
-uv run streamlit run app.py
+uv run web-panel --config ./config.json
 ```
 
 Для работы на удалённом сервере:
 
 ```bash
-uv run streamlit run app.py --server.port 8501 --server.address 0.0.0.0 --client.toolbarMode hidden
+uv run web-panel --port 8501 --listen 0.0.0.0 --config ./config.json
+```
+
+Или напрямую через Streamlit (для локальной разработки):
+
+```bash
+uv run streamlit run src/web_panel/app.py
 ```
 
 ## Установка systemd-сервиса
 
 ### Подготовка
 
-1. Скопируйте юнит-файл в директорию user-сервисов:
+1. Скопируйте юнит-файл из `examples/` в директорию user-сервисов:
 
    ```bash
-   cp web-panel.service ~/.config/systemd/user/web-panel.service
+   cp examples/web-panel.service ~/.config/systemd/user/web-panel.service
    ```
 
 2. Отредактируйте `~/.config/systemd/user/web-panel.service`:
@@ -43,6 +49,8 @@ uv run streamlit run app.py --server.port 8501 --server.address 0.0.0.0 --client
 
    ```json
    {
+     "title": "Мой Сервер управления LLM",
+     "allowed_ips": ["127.0.0.1", "192.168.1.0/24", "10.0.0.0/8", "192.168.0.*"],
      "services": {
        "web-panel": {
          "display": "Web panel (this)",
@@ -67,15 +75,18 @@ uv run streamlit run app.py --server.port 8501 --server.address 0.0.0.0 --client
    systemctl --user enable --now web-panel.service
    systemctl --user restart web-panel.service
    ```
-5. Для корректной работы кнопки `Clean mem` добавьте исключения для команд в sudoers
-  `/etc/sudoers.d/clean_mem`
-  ```bash
-  %sudo ALL=NOPASSWD: /usr/bin/sync, /usr/sbin/sysctl -w vm.drop_caches=3
-  ```
+
+5. Для корректной работы кнопки `Clean mem` добавьте исключения для команд в sudoers:
+
+   ```bash
+   echo '%sudo ALL=NOPASSWD: /usr/bin/sync, /usr/sbin/sysctl -w vm.drop_caches=3' \
+     | sudo tee /etc/sudoers.d/clean_mem
+   ```
 
 ### Примеры сервисов
 
 Все пользовательские сервисы размещаются в `~/.config/systemd/user/`.
+Файлы примеров находятся в директории `examples/`.
 
 #### llama.cpp.service
 
@@ -89,15 +100,15 @@ WorkingDirectory=/path/to/workdir/
 ExecStart=/path/to/script/llama-cpp-run.sh
 Restart=no
 
-# Отключаем лимиты памяти systemd
+# 1. Отключаем лимиты памяти (снимает ограничения systemd)
 MemoryAccounting=yes
 MemoryMax=infinity
 MemoryHigh=infinity
 
-# Запрещаем systemd убивать сервис при нехватке памяти
+# 2. Запрещаем systemd убивать сервис при нехватке памяти
 OOMPolicy=continue
 
-# Защищаем от системного OOM-killer
+# 3. Защищаем от системного OOM-killer ядра Linux
 OOMScoreAdjust=-1000
 
 [Install]
@@ -112,8 +123,8 @@ Description=Marinara Engine server
 
 [Service]
 Type=simple
-WorkingDirectory=/path/to/Marinara-Engine
-ExecStart=/path/to/Marinara-Engine/start.sh
+WorkingDirectory=/path/to/marinara-engine/Marinara-Engine
+ExecStart=/path/to/marinara-engine/Marinara-Engine/start.sh
 Restart=no
 
 [Install]
@@ -134,6 +145,8 @@ WantedBy=default.target
 
 ```json
 {
+  "title": "Мой Сервер управления LLM",
+  "allowed_ips": ["127.0.0.1", "192.168.1.0/24", "10.0.0.0/8", "192.168.0.*"],
   "services": {
     "systemd-name": {
       "display": "Отображаемое имя",
@@ -142,6 +155,10 @@ WantedBy=default.target
   }
 }
 ```
+
+- **`title`** — заголовок панели.
+- **`allowed_ips`** — список разрешённых IP-адресов/подсетей (поддерживаются точные IP, CIDR-подсети и маски со звёздочкой).
+- **`services`** — маппинг systemd-имён на отображаемое имя и порт.
 
 При добавлении нового сервиса не забудьте создать соответствующий юнит-файл
 в `~/.config/systemd/user/` и перезагрузить daemon.
@@ -157,10 +174,16 @@ web-panel/
 ├── uv.lock                   # Lock-файл uv
 ├── .python-version           # Версия Python
 ├── .gitignore
-├── main.py                   # Заглушка, не используется
-├── app.py                    # Основной код приложения
 ├── config.json               # Конфигурация сервисов
-├── web-panel.service         # systemd unit для панели
-└── scripts/
-    └── update_llama.sh       # Скрипты обслуживания
+├── examples/                 # Примеры юнит-файлов сервисов
+│   ├── config.json
+│   ├── llama.cpp.service
+│   ├── marinara-engine.service
+│   └── web-panel.service
+└── src/
+    └── web_panel/            # Пакет приложения (src-layout)
+        ├── __init__.py
+        ├── main.py             # CLI-точка входа (uv run web-panel)
+        ├── app.py              # Основной код Streamlit
+        └── utils.py            # Утилиты (load_config и др.)
 ```
