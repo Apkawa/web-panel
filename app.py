@@ -1,11 +1,10 @@
 import argparse
+import ipaddress
 import json
 import os
 import subprocess
 
 import streamlit as st
-
-# ── Аргументы командной строки ────────────────────────────────────
 
 parser = argparse.ArgumentParser(description="LLM Node Control Panel")
 parser.add_argument(
@@ -18,6 +17,63 @@ try:
     args = parser.parse_args()
 except SystemExit as e:
     os._exit(e.code)
+
+ALLOWED_IPS = [
+    "127.0.0.1",
+    "192.168.1.100",
+    "192.168.1.0/24",  # Разрешит всю сеть от 192.168.1.0 до 192.168.1.255
+    "10.0.0.0/8",  # Разрешит всю сеть 10.*.*.*
+    "192.168.2.*",  # Маска со звездочкой (автоматически превратится в /24)
+]
+
+def is_ip_allowed(ip_str):
+    # Превращаем строку IP пользователя в специальный объект для сравнения
+    try:
+        ip = ipaddress.ip_address(ip_str)
+    except ValueError:
+        return False  # Некорректный IP-адрес
+
+    # Список разрешенных сетей и одиночных IP
+    # Сюда можно писать: точные IP, подсети со слэшем и маски со звездочкой
+
+    for rule in ALLOWED_IPS:
+        try:
+            # Если в правиле есть звездочка, заменяем её на нули и слэш для библиотеки
+            if "*" in rule:
+                # Например, "192.168.2.*" превратится в "192.168.2.0/24"
+                rule = rule.replace("*", "0") + "/24"
+
+            # Создаем объект сети (или одиночного IP)
+            network = ipaddress.ip_network(rule, strict=False)
+
+            # Проверяем, входит ли IP пользователя в эту сеть
+            if ip in network:
+                return True
+        except ValueError:
+            continue  # Пропускаем ошибочные записи в списке правил
+
+    return False
+
+
+# st.json(dict(st.context.headers))
+# Получаем IP-адрес пользователя из заголовков сервера
+user_ip = st.context.ip_address
+
+# Если вы заходите с самого сервера, адрес может быть равен None или "127.0.0.1"
+if user_ip is None:
+    user_ip = "127.0.0.1"
+
+# Если IP в списке прокси (через запятую), берем первый
+user_ip = user_ip.split(",")[0].strip()
+
+st.write(f"Ваш текущий IP: `{user_ip}`")
+
+# Проверка доступа
+if not is_ip_allowed(user_ip):
+    st.error("Доступ запрещен (403 Forbidden)")
+    st.stop()
+
+
 
 # ── Загрузка конфигурации сервисов ────────────────────────────────
 
@@ -353,7 +409,7 @@ def render_log(service_id, config):
             st.caption(f"{len(lines)} строк")
         with col_b:
             if st.button(
-                f"⬆️ -{LOGS_PAGE}",
+                f"⬇️ -{LOGS_PAGE}",
                 key=f"log_less_{service_id}",
                 use_container_width=True,
                 disabled=current_n <= LOGS_PAGE,

@@ -23,6 +23,7 @@
 ```
 web-panel/
 ├── AGENTS.md                 # ← этот файл
+├── TODO.md                   # План работ
 ├── README.md                 # Описание проекта
 ├── pyproject.toml            # Зависимости (uv)
 ├── uv.lock                   # Lock-файл uv
@@ -30,7 +31,10 @@ web-panel/
 ├── .gitignore
 ├── main.py                   # Заглушка, не используется
 ├── app.py                    # Основной код приложения Streamlit
-└── web-panel.service         # systemd unit для самой панели
+├── config.json               # Конфигурация сервисов (JSON)
+├── web-panel.service         # systemd unit для самой панели
+└── scripts/
+    └── update_llama.sh       # Скрипты обслуживания
 ```
 
 ## Точка входа
@@ -47,29 +51,63 @@ uv run streamlit run app.py
 
 ### Текущее состояние
 
-`app.py` содержит:
+`app.py` содержит следующие компоненты:
 
-1. **Константу `SERVICES`** — словарь маппинга `{красивое_имя: системное_имя}`.
-2. **`get_status(service_name)`** — проверка статуса через `systemctl --user is-active`.
-3. **Цикл отрисовки** — для каждого сервиса: название, статус, кнопки старт/стоп.
+#### Загрузка конфигурации
 
-Используется `st.rerun()` после каждой команды для обновления UI.
+- **`argparse`** — поддержка аргумента `--config` для указания JSON-конфига (по умолчанию `config.json`).
+- **`DEFAULT_SERVICES`** — словарь маппинга `{systemd_name: {display, port}}` как fallback.
+- **`SERVICES`** — загружается из `config.json` (`raw.get("services", DEFAULT_SERVICES)`).
+
+#### Управление сервисами
+
+- **`get_status(service_name)`** — проверка `systemctl --user is-active`.
+- **`render_service(service_id, config)`** — отрисовка карточки: название, статус, кнопки ▶/⏹/🔄, ссылка на UI.
+- Кнопки запуска/остановки/перезапуска через `systemctl --user start|stop|restart`.
+
+#### Логи
+
+- **`get_logs(service_name, n_lines)`** — `journalctl --user -u <service> --no-pager -n <N> --output cat`.
+- **`render_log(service_id, config)`** — аккордеон с логами, динамическая подгрузка (±25 строк).
+- Состояние хранится в `st.session_state`.
+
+#### Метрики системы
+
+- **`get_gpu_stats()`** — парсинг `nvidia-smi` (VRAM used/total, utilization %, temperature).
+- **`get_memory_stats()`** — парсинг `/proc/meminfo` (RAM used/total/available).
+- **`render_system_metrics()`** — отображение в 3 колонки над карточками сервисов.
+- **`clean_mem()`** — `sudo sync; sudo sysctl -w vm.drop_caches=3`.
+
+#### Автообновление
+
+- **`st.fragment(run_every=run_every)`** — реактивный фремм для периодического обновления.
+- **`st.session_state.auto_refresh`** — переключатель в боковой панели.
+- Слайдер для интервала обновления (0.5–5.0 с).
+
+#### Кеширование
+
+- **`@st.cache_resource`** — `reload_systemd_services()` (один раз при старте).
+- **`@st.cache_data(ttl=5)`** — `get_gpu_stats()`, `get_memory_stats()` (обновление каждые 5 с).
 
 ### Ключевые замечания
 
 - Никаких внешних API ключей **не требуется** — всё через локальные системные вызовы.
-- Приложение **предполагает Linux-сервер** с systemd и, опционально, GPU NVIDIA.
-- `st.rerun()` используется для принудительного обновления состояния.
+- Приложение **предполагает Linux-сервер** с systemd, опционально GPU NVIDIA.
+- `st.rerun()` — ручное обновление; `st.fragment(run_every=...)` — автообновление.
 - `subprocess` вызовы напрямую влияют на систему — будьте осторожны.
+- `sudo` используется в `clean_mem()` — убедитесь, что пользователь в группе sudo без пароля.
+- Конфигурация сервисов вынесена в **`config.json`** — не забудьте обновить его при добавлении сервисов.
 
 
 ## Рекомендации для ИИ-агентов
 
-2. **Не ломайте существующий UI** — Streamlit имеет специфичный паттерн ререндера.
-3. **Сохраняйте обратную совместимость** — при рефакторинге `SERVICES` обновляйте все места использования.
+1. **Не ломайте существующий UI** — Streamlit имеет специфичный паттерн ререндера.
+2. **Сохраняйте обратную совместимость** — при рефакторинге `SERVICES` / `DEFAULT_SERVICES` обновляйте все места использования.
+3. **Конфиг в `config.json`** — при добавлении нового сервиса обновите и `config.json`, и `DEFAULT_SERVICES` в `app.py`.
 4. **Проверяйте diagnostics** после каждого изменения кода.
 5. **Питон-код в `app.py`** — всё в одном файле на данном этапе. Не создавайте дополнительные модули без необходимости.
 6. **Зависимости** — добавляйте через `uv add <package>`, не редактируйте `pyproject.toml` вручную.
+7. **Состояние в session_state** — при добавлении новых UI-состояний используйте `st.session_state` с проверкой на существование (`if key not in st.session_state: st.session_state[key] = default`).
 
 ## Виртуальное окружение
 
