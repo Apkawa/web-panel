@@ -18,13 +18,26 @@ try:
 except SystemExit as e:
     os._exit(e.code)
 
+# ── Загрузка конфигурации сервисов ────────────────────────────────
+
+DEFAULT_SERVICES = {
+    "web-panel": {"display": "Web panel (this)", "port": 8501},
+}
+
 ALLOWED_IPS = [
     "127.0.0.1",
-    "192.168.1.100",
     "192.168.1.0/24",  # Разрешит всю сеть от 192.168.1.0 до 192.168.1.255
     "10.0.0.0/8",  # Разрешит всю сеть 10.*.*.*
-    "192.168.2.*",  # Маска со звездочкой (автоматически превратится в /24)
+    "192.168.0.*",  # Маска со звездочкой (автоматически превратится в /24)
 ]
+raw = {}
+if args.config:
+    with open(args.config, "r") as f:
+        raw = json.load(f)
+
+SERVICES = raw.get("services", DEFAULT_SERVICES)
+ALLOWED_IPS = raw.get("allowed_ips", ALLOWED_IPS)
+
 
 def is_ip_allowed(ip_str):
     # Превращаем строку IP пользователя в специальный объект для сравнения
@@ -75,42 +88,6 @@ if not is_ip_allowed(user_ip):
 
 
 
-# ── Загрузка конфигурации сервисов ────────────────────────────────
-
-DEFAULT_SERVICES = {
-    "web-panel": {"display": "Web panel (this)", "port": 8501},
-    "llama.cpp": {
-        "display": "Llama.cpp",
-        "port": 8080,
-    },
-    "silly-tavern": {
-        "display": "Silly Tavern",
-        "port": 8000,
-    },
-    "marinara-engine": {
-        "display": "Marinara Engine",
-        "port": 7860,
-    },
-    "comfyui": {
-        "display": "ComfyUI",
-        "port": 8188,
-    },
-    "comfyui-nocache": {
-        "display": "ComfyUI No cache",
-        "port": 8188,
-    },
-    "acestep.cpp": {
-        "display": "AceStep.cpp",
-        "port": 8085,
-    },
-}
-
-if args.config:
-    with open(args.config, "r") as f:
-        raw = json.load(f)
-    SERVICES = raw.get("services", DEFAULT_SERVICES)
-else:
-    SERVICES = DEFAULT_SERVICES
 
 # Конфигурация интерфейса
 HOST = st.context.headers["host"].split(":")[0]

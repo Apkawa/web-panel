@@ -1,20 +1,16 @@
 {
   "services": {
-    "web-panel": {
-      "display": "Web panel (this)",
-      "port": 8501
-    },
     "llama.cpp": {
       "display": "Llama.cpp",
       "port": 8080
     },
-    "silly-tavern": {
-      "display": "Silly Tavern",
-      "port": 8000
-    },
     "marinara-engine": {
       "display": "Marinara Engine",
       "port": 7860
+    },
+    "silly-tavern": {
+      "display": "Silly Tavern",
+      "port": 8000
     },
     "comfyui": {
       "display": "ComfyUI",
@@ -27,6 +23,10 @@
     "acestep.cpp": {
       "display": "AceStep.cpp",
       "port": 8085
+    },
+    "web-panel": {
+      "display": "Web panel (this)",
+      "port": 8501
     }
   }
 }
