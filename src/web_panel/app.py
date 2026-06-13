@@ -11,10 +11,8 @@ config_path = os.environ.get("WEB_PANEL_CONFIG",
 
 @st.cache_data
 def load_config(path):
-    if os.path.exists(path):
-        with open(path, "r") as f:
-            return json.load(f)
-    return {}
+    from .utils import load_config as _load_config
+    _load_config(path)
 
 config = load_config(config_path)
 

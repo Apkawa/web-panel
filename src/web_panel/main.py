@@ -3,10 +3,19 @@ import sys
 import argparse
 import subprocess
 
+from web_panel.utils import load_config
+
 CONFIG_PATH = os.environ.get("WEB_PANEL_CONFIG",
     os.path.join(os.path.dirname(__file__), "config.json"))
 
-def main(args: argparse.Namespace):
+def get_option(key, args, config):
+    try:
+        return getattr(args, key)
+    except AttributeError:
+        return config[key]
+
+
+def run(args: argparse.Namespace):
     # Получаем абсолютный путь к config.json, чтобы streamlit его нашел
 
     abs_config_path = os.path.abspath(args.config or CONFIG_PATH)
@@ -15,11 +24,24 @@ def main(args: argparse.Namespace):
     current_dir = os.path.dirname(__file__)
     app_path = os.path.join(current_dir, "app.py")
 
+    default_config = {
+        "port": "8502",
+        "listen": "0.0.0.0",
+    }
+    user_config = load_config(abs_config_path)
+
+    config = dict(default_config)
+    config.update(user_config)
+
+
+    port = get_option("port", args, config)
+    listen = get_option("listen", args, config)
+
     # Формируем команду для запуска streamlit
     cmd = [
         "streamlit", "run", app_path,
-        "--server.port", "8502",
-        "--server.address", "0.0.0.0",
+        "--server.port", port,
+        "--server.address", listen,
         "--client.toolbarMode", "hidden"
     ]
 
@@ -34,7 +56,7 @@ def main(args: argparse.Namespace):
     except KeyboardInterrupt:
         sys.exit(0)
 
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser(description="LLM Node Control Panel")
     parser.add_argument(
         "--config",
@@ -46,4 +68,8 @@ if __name__ == "__main__":
         args = parser.parse_args()
     except SystemExit as e:
         os._exit(e.code)
-    main(args)
+    run(args)
+
+
+if __name__ == "__main__":
+    main()
