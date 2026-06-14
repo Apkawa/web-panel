@@ -13,8 +13,10 @@ def wildcard_to_mask(ip_str: str) -> str:
     "192.0.0.0/8"
     """
     if "*" in ip_str:
-        # Например, "192.168.2.*" превратится в "192.168.2.0/24"
-        ip_str = ip_str.replace("*", "0") + "/24"
+        parts = ip_str.split(".")
+        wildcard_parts = sum(1 for p in parts if p == "*")
+        prefix_length = 32 - (wildcard_parts * 8)
+        ip_str = ip_str.replace("*", "0") + f"/{prefix_length}"
     return ip_str
 
 
@@ -22,11 +24,7 @@ def rule_to_networks(ips: list[str]) -> list[ipaddress.IPv4Network | ipaddress.I
     networks = []
     for rule in ips:
         try:
-            # Если в правиле есть звездочка, заменяем её на нули и слэш для библиотеки
-            if "*" in rule:
-                # Например, "192.168.2.*" превратится в "192.168.2.0/24"
-                rule = rule.replace("*", "0") + "/24"
-
+            rule = wildcard_to_mask(rule)
             # Создаем объект сети (или одиночного IP)
             network = ipaddress.ip_network(rule, strict=False)
             networks.append(network)
