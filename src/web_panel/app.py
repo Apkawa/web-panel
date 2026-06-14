@@ -1,14 +1,15 @@
-import ipaddress
 import os
 import subprocess
 
 import streamlit as st
 
-from web_panel.utils import load_config
+from web_panel.config import load_config
+from web_panel.utils.ipaddress import is_ip_allowed
 
 # Читаем переменную, которую передал наш main.py
-config_path = os.environ.get("WEB_PANEL_CONFIG",
-    os.path.join(os.path.dirname(__file__), "config.json"))
+config_path = os.environ.get(
+    "WEB_PANEL_CONFIG", os.path.join(os.path.dirname(__file__), "config.json")
+)
 
 
 config = st.cache_data(load_config)(config_path)
@@ -19,44 +20,8 @@ DEFAULT_SERVICES = {
     "web-panel": {"display": "Web panel (this)", "port": 8501},
 }
 
-ALLOWED_IPS = [
-    "127.0.0.1",
-    "192.168.1.0/24",  # Разрешит всю сеть от 192.168.1.0 до 192.168.1.255
-    "10.0.0.0/8",  # Разрешит всю сеть 10.*.*.*
-    "192.168.0.*",  # Маска со звездочкой (автоматически превратится в /24)
-]
-
-SERVICES = config.get("services", DEFAULT_SERVICES)
-ALLOWED_IPS = config.get("allowed_ips", ALLOWED_IPS)
-
-
-def is_ip_allowed(ip_str):
-    # Превращаем строку IP пользователя в специальный объект для сравнения
-    try:
-        ip = ipaddress.ip_address(ip_str)
-    except ValueError:
-        return False  # Некорректный IP-адрес
-
-    # Список разрешенных сетей и одиночных IP
-    # Сюда можно писать: точные IP, подсети со слэшем и маски со звездочкой
-
-    for rule in ALLOWED_IPS:
-        try:
-            # Если в правиле есть звездочка, заменяем её на нули и слэш для библиотеки
-            if "*" in rule:
-                # Например, "192.168.2.*" превратится в "192.168.2.0/24"
-                rule = rule.replace("*", "0") + "/24"
-
-            # Создаем объект сети (или одиночного IP)
-            network = ipaddress.ip_network(rule, strict=False)
-
-            # Проверяем, входит ли IP пользователя в эту сеть
-            if ip in network:
-                return True
-        except ValueError:
-            continue  # Пропускаем ошибочные записи в списке правил
-
-    return False
+SERVICES = config.get("services") or DEFAULT_SERVICES
+ALLOWED_IPS = config["allowed_ips"]
 
 
 # st.json(dict(st.context.headers))
@@ -73,11 +38,9 @@ user_ip = user_ip.split(",")[0].strip()
 st.write(f"Ваш текущий IP: `{user_ip}`")
 
 # Проверка доступа
-if not is_ip_allowed(user_ip):
+if not is_ip_allowed(user_ip, ALLOWED_IPS):
     st.error("Доступ запрещен (403 Forbidden)")
     st.stop()
-
-
 
 
 # Конфигурация интерфейса
@@ -110,7 +73,7 @@ init_message = reload_systemd_services()
 # Выводим статус в интерфейс (по желанию)
 st.sidebar.info(init_message)
 
-title = config.get("title", "📟 Мой Сервер управления LLM")
+title = config["title"]
 st.set_page_config(
     page_title=title,
     page_icon="🤖",
@@ -260,9 +223,7 @@ def get_logs(service_name, n_lines):
         errors="replace",
     )
     if result.returncode != 0:
-        return [
-            f"⚠️ Ошибка journalctl (код {result.returncode}): {result.stderr.strip()}"
-        ]
+        return [f"⚠️ Ошибка journalctl (код {result.returncode}): {result.stderr.strip()}"]
     text = result.stdout.strip()
     if not text:
         return ["Нет записей в логах."]

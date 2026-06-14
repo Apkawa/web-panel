@@ -16,3 +16,54 @@ web-panel = "web_panel.main:main"
 Repository = "https://github.com/Apkawa/web-panel.git"
 Issues = "https://github.com/Apkawa/web-panel/issues"
 Changelog = "https://github.com/Apkawa/web-panel/master/CHANGELOG.md"
+
+[tool.poe.tasks]
+# uv run poe check
+check = "ruff check"
+format = "ruff format"
+types = "mypy -p web_panel"
+
+# Аналог для запуска тестов
+test = "pytest"
+version-patch = "bump-my-version bump patch"
+
+# 1. Настройка для сборщика по умолчанию (uv использует его в фоне)
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+# 3. Настройка линтера и форматировщика Ruff (Взамен Black/Flake8)
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"] # Ошибки, логика, сортировка импортов, предупреждения
+
+[tool.ruff.format]
+quote-style = "double"
+
+# 4. Настройка окружения для разработки и тестов
+[dependency-groups]
+dev = [
+    "bump-my-version>=0.30.0",
+    "pytest>=8.0.0",
+    "ruff>=0.9.0",
+    "pre-commit>=4.0.0",
+    "poethepoet>=0.46.0",
+    "mypy>=2.1.0",
+]
+
+[tool.mypy]
+# 1. Включаем глобальный строгий режим
+strict = true
+
+# 2. Позволяет точно видеть, какое именно правило нарушено
+show_error_codes = true
+
+[[tool.mypy.overrides]]
+# Говорим mypy не паниковать, если у каких-то внешних либ нет типов
+module = [
+    "streamlit.*",
+]
+ignore_missing_imports = true
