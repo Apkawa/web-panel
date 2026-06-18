@@ -10,13 +10,18 @@
 
 ## Стек
 
-| Компонент      | Технология                            |
-| -------------- | ------------------------------------- |
-| Фреймворк      | [Streamlit](https://streamlit.io/) >= 1.57.0 |
-| Язык           | Python >= 3.14                        |
-| Менеджер пакетов | [uv](https://github.com/astral-sh/uv) |
-| Управление сервисами | systemd (user services)           |
-| Мониторинг     | `systemctl --user`, `journalctl --user`, `nvidia-smi` |
+| Компонент            | Технология                            |
+| -------------------- | ------------------------------------- |
+| Фреймворк            | [Streamlit](https://streamlit.io/) >= 1.57.0 |
+| Язык                 | Python >= 3.14                        |
+| Менеджер пакетов     | [uv](https://github.com/astral-sh/uv) |
+| Управление сервисами | systemd (user services)               |
+| Мониторинг           | `systemctl --user`, `journalctl --user`, `nvidia-smi` |
+| Линтер               | [Ruff](https://docs.astral.sh/ruff/)  |
+| Типизация            | [mypy](https://mypy.readthedocs.io/)  |
+| Тестирование         | [pytest](https://docs.pytest.org/)    |
+| Предустановочные хуки| [pre-commit](https://pre-commit.com/) |
+| Task runner          | [poethepoet](https://poethepoet.kamatz.me/) |
 
 ## Структура
 
@@ -29,18 +34,24 @@ web-panel/
 ├── uv.lock                   # Lock-файл uv
 ├── .python-version           # Версия Python
 ├── .gitignore
+├── .pre-commit-config.yaml   # Pre-commit хуки
 ├── config.json               # Конфигурация сервисов (JSON)
 ├── examples/                 # Примеры юнит-файлов сервисов
 │   ├── config.json
 │   ├── llama.cpp.service
 │   ├── marinara-engine.service
 │   └── web-panel.service
-└── src/
-    └── web_panel/            # Пакет приложения (src-layout)
-        ├── __init__.py
-        ├── main.py             # CLI-точка входа (uv run web-panel)
-        ├── app.py              # Основной код Streamlit
-        └── utils.py            # Утилиты (load_config и др.)
+├── scripts/                  # Вспомогательные скрипты
+│   └── update_llama.sh
+├── src/
+│   └── web_panel/            # Пакет приложения (src-layout)
+│       ├── __init__.py
+│       ├── main.py             # CLI-точка входа (uv run web-panel)
+│       ├── app.py              # Основной код Streamlit
+│       └── utils.py            # Утилиты (load_config и др.)
+└── tests/                    # Тесты
+    └── utils/
+        └── test_ipaddress.py
 ```
 
 ## Точка входа
@@ -201,6 +212,9 @@ echo '%sudo ALL=NOPASSWD: /usr/bin/sync, /usr/sbin/sysctl -w vm.drop_caches=3' \
 6. **Зависимости** — добавляйте через `uv add <package>`, не редактируйте `pyproject.toml` вручную.
 7. **Состояние в session_state** — при добавлении новых UI-состояний используйте `st.session_state` с проверкой на существование.
 8. **Стиль документации** — не использовать эмодзи, быть лаконичным.
+9. **Линтинг и типизация** — перед коммитом запускайте `uv run poe check` и `uv run poe types`.
+10. **Тесты** — при изменении логики добавляйте или обновляйте тесты в `tests/`.
+11. **Pre-commit** — убедитесь, что все хуки проходят перед созданием PR.
 
 ## Виртуальное окружение
 
@@ -215,4 +229,95 @@ uv run streamlit run src/web_panel/app.py
 
 # Запуск через CLI
 uv run web-panel --config ./config.json
+```
+
+
+## Линтинг и форматирование
+
+Проект использует **Ruff** для линтинга и форматирования.
+
+```bash
+# Проверка (lint)
+uv run poe check
+
+# Форматирование
+uv run poe format
+```
+
+Настройки в `pyproject.toml`: `line-length = 100`, `target-version = "py314"`,
+выбранные категории правил — `E`, `F`, `I`, `W`.
+
+## Типизация
+
+Проект использует **mypy** в строгом режиме с `show_error_codes = true`.
+
+```bash
+uv run poe types
+```
+
+Для библиотек без типов-обёрток (например, `streamlit`) настроен
+`ignore_missing_imports = true`.
+
+## Тестирование
+
+Проект использует **pytest**.
+
+```bash
+# Запуск всех тестов
+uv run pytest
+
+# Запуск с подробным выводом
+uv run pytest -v
+
+# Запуск конкретной директории
+uv run pytest tests/utils
+```
+
+Тесты размещаются в `tests/` с вложенной структурой, соответствующей пакетам `src/web_panel/`.
+
+## Pre-commit хуки
+
+Настроены в `.pre-commit-config.yaml`:
+
+- `ruff-check` — линтинг с автоисправлением.
+- `ruff-format` — форматирование.
+- `pytest` — запуск тестов (через `uv run pytest`).
+
+Активация:
+
+```bash
+pre-commit install
+```
+
+## Виртуальное окружение
+
+Проект использует `uv` для управления окружением.
+
+```bash
+# Установка зависимостей
+uv sync
+
+# Запуск (локальная разработка)
+uv run streamlit run src/web_panel/app.py
+
+# Запуск через CLI
+uv run web-panel --config ./config.json
+```
+
+## Task runner (poe)
+
+Используется [poethepoet](https://poethepoet.kamatz.me/) для управления задачами (`[tool.poe.tasks]` в `pyproject.toml`):
+
+```bash
+# Линтинг
+uv run poe check
+
+# Форматирование
+uv run poe format
+
+# Типизация
+uv run poe types
+
+# Тесты
+uv run poe test
 ```

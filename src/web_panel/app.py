@@ -146,31 +146,33 @@ def render_system_metrics():
     gpu = get_gpu_stats()
     mem = get_memory_stats()
 
-    cols = st.columns(3)
+    cols = st.columns(4)
 
-    # GPU Load
-    with cols[0]:
-        if gpu:
+    if not gpu:
+        with cols[0]:
+            st.metric(label="💻 GPU Load", value="—", help="nvidia-smi not available")
+    else:
+        # GPU Load
+        with cols[0]:
             st.metric(
                 label="💻 GPU Load",
                 value=f"{gpu['util']}%",
-                help=f"Temperature: {gpu['temp']}°C",
             )
-        else:
-            st.metric(label="💻 GPU Load", value="—", help="nvidia-smi not available")
 
-    # GPU Memory
-    with cols[1]:
-        if gpu:
+        with cols[1]:
+            st.metric(
+                label="🌡️ GPU Temp",
+                value=f"{gpu['temp']}°C",
+            )
+        with cols[2]:
+            # GPU Memory
             st.metric(
                 label="🧠 GPU Memory",
                 value=f"{gpu['used'] / 1024:.1f} / {gpu['total'] / 1024:.1f} GB",
             )
-        else:
-            st.metric(label="🧠 GPU Memory", value="—")
 
     # RAM
-    with cols[2]:
+    with cols[3]:
         if mem:
             mem_used_gb = mem["used"] / 1024 / 1024
             mem_total_gb = mem["total"] / 1024 / 1024
